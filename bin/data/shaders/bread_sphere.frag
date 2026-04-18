@@ -1,4 +1,5 @@
 #version 150
+// PBR only here: all geometry displacement (bread height + audio) is applied in bread_sphere.vert — no FS parallax / height.
 
 uniform vec3 uCameraPos;
 uniform vec3 uLKey;

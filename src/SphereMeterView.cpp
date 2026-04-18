@@ -15,17 +15,17 @@ constexpr float kPolarEps = 0.04f;
 // Logical meter length (RMS→dB→columns); shader maps via uMeterLitCols.
 constexpr int kMeterLogicalCols = 256;
 // Square UV/plane: N×N quads, N divisible by kLatitudeBands (16). Each quad maps to a 1/N×1/N cell (matches square 4K maps).
-// 1024 ≈ 4.2M verts; 2048 ≈ 16.8M (heavy); 4096 likely OOM — raise only if you have RAM/VRAM.
-constexpr int kUvGridRes = 1024;
+// 1536 ≈ 9.4M verts (dup quads); 2048 ≈ 16.8M; 4096 likely OOM — lower if startup is slow (openspec sphere-mesh-vs-displacement).
+constexpr int kUvGridRes = 1536;
 constexpr int kLatitudeBands = kNumInputChannels;
 static_assert(kUvGridRes > 0 && kUvGridRes % kLatitudeBands == 0, "kUvGridRes must be a positive multiple of 16");
 constexpr int kMeterColsGeom = kUvGridRes;
 constexpr int kLatSub = kUvGridRes / kLatitudeBands;
 
-// Max radial push along vertex normal; ~4–5% of radius keeps motion visible without puffing the loaf.
-constexpr float kDispAmp = kSphereRadius * 0.045f;
-// Height from displacement.png (0.5 = neutral); smaller than kDispAmp so crust reads as surface detail.
-constexpr float kDispTexAmp = kSphereRadius * 0.018f;
+// Max radial push (audio); slightly eased vs coarser mesh so finer tessellation does not read as “puffed”.
+constexpr float kDispAmp = kSphereRadius * 0.04f;
+// Bread displacement.png scale (0.5 = neutral); tuned with higher N.
+constexpr float kDispTexAmp = kSphereRadius * 0.016f;
 
 // dBFS + offset → how many of kMeterCols segments light up (0..256). Tweak kDbDisplayMax vs session level.
 constexpr float kDbSilenceFloor = -72.f;
@@ -263,10 +263,14 @@ void drawSphereMeterUnfoldBody(const ofRectangle & rect, const std::array<float,
 	ofSetColor(255);
 	gAlbedo.draw(0.f, 0.f, rect.width, rect.height);
 
+	// Faint u-grid: at high N draw every nth line so unfold stays interactive (openspec sphere-mesh-vs-displacement).
+	const int uFineStep = kMeterColsGeom > 768 ? std::max(1, kMeterColsGeom / 384) : 1;
+	const int hLineStep = totalLatStrips > 768 ? std::max(1, totalLatStrips / 384) : 1;
+
 	ofSetLineWidth(1.f);
 	ofNoFill();
 	ofSetColor(255, 255, 255, 40);
-	for(int j = 0; j <= kMeterColsGeom; ++j){
+	for(int j = 0; j <= kMeterColsGeom; j += uFineStep){
 		const float x = rect.width * (static_cast<float>(j) / static_cast<float>(kMeterColsGeom));
 		ofDrawLine(x, 0.f, x, rect.height);
 	}
@@ -281,7 +285,7 @@ void drawSphereMeterUnfoldBody(const ofRectangle & rect, const std::array<float,
 	}
 
 	ofSetColor(190, 210, 255, 50);
-	for(int s = 0; s <= totalLatStrips; ++s){
+	for(int s = 0; s <= totalLatStrips; s += hLineStep){
 		const float y = rect.height * (static_cast<float>(s) / static_cast<float>(totalLatStrips));
 		ofDrawLine(0.f, y, rect.width, y);
 	}
@@ -337,7 +341,8 @@ void setupSphereMeterView(){
 	buildSphereMesh();
 
 	const size_t nVerts = gMesh.getNumVertices();
-	ofLogNotice("SphereMeterView") << "Sphere mesh: square UV " << kUvGridRes << "×" << kUvGridRes << " quads  verts=" << nVerts
+	const size_t nQuads = static_cast<size_t>(kUvGridRes) * static_cast<size_t>(kUvGridRes);
+	ofLogNotice("SphereMeterView") << "Sphere mesh: square UV N=" << kUvGridRes << "  quads=" << nQuads << "  verts=" << nVerts
 									 << " | PBR: " << (gLoggedBreadFallback ? "partial fallbacks" : "bread/*.png OK") << " | IBL env=" << gEnvOk;
 }
 

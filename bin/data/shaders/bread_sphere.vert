@@ -1,4 +1,5 @@
 #version 150
+// Only this stage offsets vertices: audio-driven radial push + bread displacement texture (then MVP).
 
 uniform mat4 modelViewProjectionMatrix;
 uniform mat4 modelMatrix;
