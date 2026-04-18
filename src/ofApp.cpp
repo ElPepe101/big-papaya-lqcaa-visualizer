@@ -1,7 +1,7 @@
 #include "ofApp.h"
 #include "MeterBlocks.h"
-#include "RadialOrbView.h"
 #include "SoundDevicePickers.h"
+#include "SphereMeterView.h"
 #include "StereoMonitor.h"
 #include <algorithm>
 
@@ -12,6 +12,8 @@ void ofApp::setup(){
 	ofSetVerticalSync(true);
 	ofEnableAlphaBlending();
 	ofBackground(54, 54, 54);
+
+	orbitCam_.setup(-4000.f, 4000.f);
 
 	soundStream.printDeviceList();
 
@@ -89,7 +91,15 @@ void ofApp::draw(){
 	}
 	ofDrawBitmapString(dbg, 12, 38);
 
-	drawRadialOrb(meterDisplay);
+	ofEnableDepthTest();
+	const ofRectangle vp(0, 0, ofGetWidth(), ofGetHeight());
+	orbitCam_.begin(vp);
+	lqcaa::drawSphereMeterPatches(meterDisplay);
+	orbitCam_.end();
+	ofDisableDepthTest();
+
+	ofSetColor(200);
+	ofDrawBitmapString("Drag sphere view: left mouse orbit (ortho, +Y up).", 12, 56);
 
 	ofSetColor(180);
 	ofDrawBitmapString("Route Ableton → BlackHole 16ch; manual QA: verify each ch + headphone monitor.", 12, static_cast<float>(ofGetHeight()) - 10.f);
@@ -145,14 +155,28 @@ void ofApp::mouseMoved(int x, int y){
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
+	if(!orbDragging_ || button != 0){
+		return;
+	}
+	const int dx = x - dragLast_.x;
+	const int dy = y - dragLast_.y;
+	dragLast_ = glm::ivec2(x, y);
+	orbitCam_.onDrag(dx, dy);
 }
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
+	if(button == 0){
+		orbDragging_ = true;
+		dragLast_ = glm::ivec2(x, y);
+	}
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
+	if(button == 0){
+		orbDragging_ = false;
+	}
 }
 
 //--------------------------------------------------------------

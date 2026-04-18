@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Constants.h"
+#include "OrbitOrthoCamera.h"
 #include "ofMain.h"
 #include <array>
 #include <mutex>
@@ -40,4 +41,8 @@ class ofApp : public ofBaseApp{
 	int actualSampleRate = 0;
 	int actualBufferSize = 0;
 	bool monitorClipWarning = false;
+
+	OrbitOrthoCamera orbitCam_;
+	glm::ivec2 dragLast_{0, 0};
+	bool orbDragging_ = false;
 };
