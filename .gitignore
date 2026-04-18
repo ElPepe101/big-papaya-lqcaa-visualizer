@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# C++ / Make
+*.o
+*.a
+*.d
+*.dylib
+obj/
+build/
+cmake-build-*/
+
+# OpenFrameworks (Makefile build)
+# Ignore build products under bin/ but keep runtime assets in bin/data/
+/bin/*
+!/bin/data/
+!/bin/data/**
+
+# Xcode (if you use Project Generator outputs here)
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+*.xcworkspace/xcuserdata/
+xcuserdata/
+DerivedData/
+
+# Editor / tooling (optional — remove lines if you prefer to commit these)
+#.vscode/
+#.idea/
