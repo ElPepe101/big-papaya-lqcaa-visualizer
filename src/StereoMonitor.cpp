@@ -10,11 +10,12 @@ bool fillStereoMonitorFromInterleaved(const std::vector<float> & lastInputInterl
 									  size_t inCh){
 	const size_t availFrames = lastInputInterleaved.size() / inCh;
 	const size_t useFrames = std::min(nFrames, availFrames);
+	const int chSum = static_cast<int>(std::min(static_cast<size_t>(kNumInputChannels), inCh));
 
 	bool clipped = false;
 	for(size_t f = 0; f < useFrames; ++f){
 		float sum = 0.f;
-		for(int c = 0; c < kNumInputChannels; ++c){
+		for(int c = 0; c < chSum; ++c){
 			sum += lastInputInterleaved[f * inCh + static_cast<size_t>(c)];
 		}
 		float m = sum * kMonitorGain;

@@ -40,9 +40,11 @@ class ofApp : public ofBaseApp{
 	bool audioSetupOk = false;
 	int actualSampleRate = 0;
 	int actualBufferSize = 0;
+	int actualInputChannels_ = lqcaa::kNumInputChannels;
 	bool monitorClipWarning = false;
 
 	OrbitOrthoCamera orbitCam_;
 	glm::ivec2 dragLast_{0, 0};
 	bool orbDragging_ = false;
+	bool showUvUnfold_ = false;
 };

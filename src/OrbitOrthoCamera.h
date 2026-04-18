@@ -12,6 +12,9 @@ class OrbitOrthoCamera{
 	void begin(const ofRectangle & viewport);
 	void end();
 
+	/// Camera used for matrices / eye position (orthographic orbit).
+	const ofCamera & getCamera() const { return cam_; }
+
  private:
 	ofCamera cam_;
 	float nearClip_ = -4000.f;

@@ -28,3 +28,4 @@ DerivedData/
 # Editor / tooling (optional — remove lines if you prefer to commit these)
 #.vscode/
 #.idea/
+.DS_Store
