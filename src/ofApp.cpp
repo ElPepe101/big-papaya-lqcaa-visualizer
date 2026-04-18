@@ -1,52 +1,16 @@
 #include "ofApp.h"
+#include "MeterBlocks.h"
+#include "RadialOrbView.h"
+#include "SoundDevicePickers.h"
+#include "StereoMonitor.h"
 #include <algorithm>
-#include <cmath>
 
 using namespace lqcaa;
-
-namespace {
-
-bool pickDefaultStereoOut(ofSoundStream & stream, ofSoundDevice & out){
-	auto devs = stream.getDeviceList();
-	for(const auto & d: devs){
-		if(d.outputChannels >= 2 && d.isDefaultOutput){
-			out = d;
-			return true;
-		}
-	}
-	for(const auto & d: devs){
-		if(d.outputChannels >= 2){
-			out = d;
-			return true;
-		}
-	}
-	return false;
-}
-
-bool pickBlackHole16In(ofSoundStream & stream, ofSoundDevice & in){
-	auto exact = stream.getMatchingDevices("BlackHole", 16, 0);
-	if(!exact.empty()){
-		in = exact[0];
-		return in.inputChannels >= 16;
-	}
-	auto loose = stream.getMatchingDevices("BlackHole");
-	if(!loose.empty()){
-		in = loose[0];
-		if(in.inputChannels < 16){
-			ofLogWarning("ofApp") << "BlackHole device \"" << in.name << "\" reports " << in.inputChannels
-								  << " inputs; 16 required for this build.";
-			return false;
-		}
-		return true;
-	}
-	return false;
-}
-
-} // namespace
 
 //--------------------------------------------------------------
 void ofApp::setup(){
 	ofSetVerticalSync(true);
+	ofEnableAlphaBlending();
 	ofBackground(54, 54, 54);
 
 	soundStream.printDeviceList();
@@ -109,26 +73,7 @@ void ofApp::update(){
 	if(lastInputInterleaved.empty()){
 		return;
 	}
-	const size_t nFrames = lastInputInterleaved.size() / static_cast<size_t>(kNumInputChannels);
-	if(nFrames == 0){
-		return;
-	}
-
-	const size_t ch = static_cast<size_t>(kNumInputChannels);
-	std::array<double, kNumInputChannels> sumSq{};
-	sumSq.fill(0.0);
-	for(size_t f = 0; f < nFrames; ++f){
-		for(int c = 0; c < kNumInputChannels; ++c){
-			const float s = lastInputInterleaved[f * ch + static_cast<size_t>(c)];
-			sumSq[static_cast<size_t>(c)] += static_cast<double>(s) * static_cast<double>(s);
-		}
-	}
-	const double n = static_cast<double>(nFrames);
-	for(int c = 0; c < kNumInputChannels; ++c){
-		const size_t ci = static_cast<size_t>(c);
-		const float rms = static_cast<float>(std::sqrt(sumSq[ci] / n));
-		meterDisplay[ci] = meterDisplay[ci] * (1.f - kMeterEmaBlend) + rms * kMeterEmaBlend;
-	}
+	updateMeterDisplayFromInterleaved(lastInputInterleaved, meterDisplay);
 }
 
 //--------------------------------------------------------------
@@ -144,29 +89,7 @@ void ofApp::draw(){
 	}
 	ofDrawBitmapString(dbg, 12, 38);
 
-	const float margin = 12.f;
-	const float cellW = (ofGetWidth() - margin * 2.f) / 4.f;
-	const float cellH = (ofGetHeight() - 80.f - margin) / 4.f;
-	const float maxBar = cellH - 24.f;
-
-	for(int c = 0; c < kNumInputChannels; ++c){
-		const int col = c % 4;
-		const int row = c / 4;
-		const float x0 = margin + static_cast<float>(col) * cellW;
-		const float y0 = 56.f + static_cast<float>(row) * cellH;
-		ofSetColor(180);
-		ofDrawBitmapString("ch " + ofToString(c + 1), x0 + 4.f, y0 + 14.f);
-		ofNoFill();
-		ofSetColor(120);
-		ofDrawRectangle(x0 + 2.f, y0 + 18.f, cellW - 8.f, maxBar);
-		// Map smoothed RMS to bar: linear in [0, kRmsMapMax], then sqrt for more motion at low levels.
-		const float t = ofMap(meterDisplay[static_cast<size_t>(c)], 0.f, kRmsMapMax, 0.f, 1.f, true);
-		const float vis = std::sqrt(t);
-		const float h = vis * maxBar;
-		ofFill();
-		ofSetColor(100, 200, 255);
-		ofDrawRectangle(x0 + 4.f, y0 + 18.f + (maxBar - h), cellW - 12.f, h);
-	}
+	drawRadialOrb(meterDisplay);
 
 	ofSetColor(180);
 	ofDrawBitmapString("Route Ableton → BlackHole 16ch; manual QA: verify each ch + headphone monitor.", 12, static_cast<float>(ofGetHeight()) - 10.f);
@@ -203,32 +126,9 @@ void ofApp::audioOut(ofSoundBuffer & output){
 		return;
 	}
 
+	float * buf = output.getBuffer().data();
 	const size_t inCh = static_cast<size_t>(kNumInputChannels);
-	const size_t availFrames = lastInputInterleaved.size() / inCh;
-	const size_t useFrames = std::min(nFrames, availFrames);
-
-	bool clipped = false;
-	for(size_t f = 0; f < useFrames; ++f){
-		float sum = 0.f;
-		for(int c = 0; c < kNumInputChannels; ++c){
-			sum += lastInputInterleaved[f * inCh + static_cast<size_t>(c)];
-		}
-		float m = sum * kMonitorGain;
-		if(m > 1.f){
-			m = 1.f;
-			clipped = true;
-		}else if(m < -1.f){
-			m = -1.f;
-			clipped = true;
-		}
-		output[f * outCh + 0] = m;
-		output[f * outCh + 1] = m;
-	}
-	monitorClipWarning = clipped;
-	for(size_t f = useFrames; f < nFrames; ++f){
-		output[f * outCh + 0] = 0.f;
-		output[f * outCh + 1] = 0.f;
-	}
+	monitorClipWarning = fillStereoMonitorFromInterleaved(lastInputInterleaved, buf, nFrames, outCh, inCh);
 }
 
 //--------------------------------------------------------------
