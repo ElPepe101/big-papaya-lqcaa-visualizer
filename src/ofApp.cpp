@@ -114,26 +114,29 @@ void ofApp::update(){
 		return;
 	}
 
-	std::array<float, kNumInputChannels> framePeak{};
-	framePeak.fill(0.f);
+	const size_t ch = static_cast<size_t>(kNumInputChannels);
+	std::array<double, kNumInputChannels> sumSq{};
+	sumSq.fill(0.0);
 	for(size_t f = 0; f < nFrames; ++f){
 		for(int c = 0; c < kNumInputChannels; ++c){
-			const float v = std::abs(lastInputInterleaved[f * static_cast<size_t>(kNumInputChannels) + static_cast<size_t>(c)]);
-			framePeak[static_cast<size_t>(c)] = std::max(framePeak[static_cast<size_t>(c)], v);
+			const float s = lastInputInterleaved[f * ch + static_cast<size_t>(c)];
+			sumSq[static_cast<size_t>(c)] += static_cast<double>(s) * static_cast<double>(s);
 		}
 	}
+	const double n = static_cast<double>(nFrames);
 	for(int c = 0; c < kNumInputChannels; ++c){
 		const size_t ci = static_cast<size_t>(c);
-		peakDisplay[ci] = std::max(framePeak[ci], peakDisplay[ci] * 0.92f);
+		const float rms = static_cast<float>(std::sqrt(sumSq[ci] / n));
+		meterDisplay[ci] = meterDisplay[ci] * (1.f - kMeterEmaBlend) + rms * kMeterEmaBlend;
 	}
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
 	ofSetColor(225);
-	ofDrawBitmapString("LQCAA — 16ch meters + stereo monitor (sum * " + ofToString(kMonitorGain, 2) + ")", 12, 20);
+	ofDrawBitmapString("LQCAA — 16ch RMS meters + stereo monitor (sum * " + ofToString(kMonitorGain, 2) + ")", 12, 20);
 
-	std::string dbg = "sampleRate=" + (audioSetupOk ? ofToString(actualSampleRate) : std::string("—"));
+	std::string dbg = "RMS  sampleRate=" + (audioSetupOk ? ofToString(actualSampleRate) : std::string("—"));
 	dbg += "  bufferSize=" + (audioSetupOk ? ofToString(actualBufferSize) : std::string("—"));
 	dbg += "  tick=" + ofToString(soundStream.getTickCount());
 	if(monitorClipWarning){
@@ -156,7 +159,10 @@ void ofApp::draw(){
 		ofNoFill();
 		ofSetColor(120);
 		ofDrawRectangle(x0 + 2.f, y0 + 18.f, cellW - 8.f, maxBar);
-		const float h = peakDisplay[static_cast<size_t>(c)] * maxBar;
+		// Map smoothed RMS to bar: linear in [0, kRmsMapMax], then sqrt for more motion at low levels.
+		const float t = ofMap(meterDisplay[static_cast<size_t>(c)], 0.f, kRmsMapMax, 0.f, 1.f, true);
+		const float vis = std::sqrt(t);
+		const float h = vis * maxBar;
 		ofFill();
 		ofSetColor(100, 200, 255);
 		ofDrawRectangle(x0 + 4.f, y0 + 18.f + (maxBar - h), cellW - 12.f, h);

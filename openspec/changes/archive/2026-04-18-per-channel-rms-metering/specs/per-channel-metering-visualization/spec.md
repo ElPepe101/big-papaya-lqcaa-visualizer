@@ -1,8 +1,5 @@
-# per-channel-metering-visualization Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change blackhole-16ch-metering-stereo-out. Update Purpose after archive.
-## Requirements
 ### Requirement: Per-channel level metrics
 
 The system SHALL compute a **root-mean-square (RMS)** level independently for each of the 16 input channels over the samples present in each processed audio snapshot (the buffer made available to the main thread from the audio input path). For each channel, RMS SHALL be the square root of the mean of squared sample values across all frames in that snapshot for that channel.
@@ -18,13 +15,3 @@ The value used for **on-screen metering** SHALL be a **smoothed** representation
 
 - **WHEN** RMS values are updated for the 16 channels
 - **THEN** the levels used for drawing the meters SHALL incorporate smoothing such that brief transients do not fully dominate bar height compared to the underlying RMS
-
-### Requirement: Simultaneous visualization
-
-The system SHALL render a visual representation of all 16 channel levels during the same frame without requiring the user to switch views to see individual channels.
-
-#### Scenario: All meters visible
-
-- **WHEN** the application window is visible
-- **THEN** the user SHALL see 16 distinct meter regions (for example bars) corresponding to channels 1–16 in order
-

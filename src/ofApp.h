@@ -15,6 +15,10 @@ constexpr int kBufferSize = 512;
 constexpr unsigned int kSampleRate = 48000;
 // Sum of 16 channels: scale down before hard clip (~-14 dB vs full-scale sum).
 constexpr float kMonitorGain = 0.2f;
+// Blend new block RMS into displayed level each update (higher = snappier).
+constexpr float kMeterEmaBlend = 0.22f;
+// Map RMS [0, kRmsMapMax] to full bar; typical line-level material sits below ~0.3 RMS.
+constexpr float kRmsMapMax = 0.28f;
 } // namespace lqcaa
 
 class ofApp : public ofBaseApp{
@@ -44,7 +48,8 @@ class ofApp : public ofBaseApp{
  private:
 	std::mutex audioMutex;
 	std::vector<float> lastInputInterleaved;
-	std::array<float, lqcaa::kNumInputChannels> peakDisplay{};
+	// Smoothed RMS-driven levels for visualization (0..~kRmsMapMax typical).
+	std::array<float, lqcaa::kNumInputChannels> meterDisplay{};
 
 	bool audioSetupOk = false;
 	int actualSampleRate = 0;
