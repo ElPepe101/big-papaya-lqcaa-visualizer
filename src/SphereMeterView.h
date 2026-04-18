@@ -11,7 +11,7 @@ namespace lqcaa {
 // One-time GL/shader/texture setup for the PBR sphere meter (call from ofApp::setup after GL init).
 void setupSphereMeterView();
 
-// Tessellated sphere: latitude bands map to input channels via a fixed scramble; columns displace by RMS→dB→meter (rmsToLitColumnCount).
+// Square UV sphere (N×N quads, N multiple of 16): channel scramble per latitude band; RMS→dB→meter displacement (rmsToLitColumnCount).
 // `numInputChannels` is the stream channel count.
 void drawSphereMeterPBR(const ofCamera & cam, const std::array<float, kNumInputChannels> & meterDisplay, int numInputChannels);
 

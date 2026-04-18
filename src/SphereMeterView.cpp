@@ -12,13 +12,15 @@ namespace {
 
 constexpr float kSphereRadius = 200.f;
 constexpr float kPolarEps = 0.04f;
-// Logical meter length (RMS→dB→columns); geometry can be denser — shader maps via uMeterLitCols.
+// Logical meter length (RMS→dB→columns); shader maps via uMeterLitCols.
 constexpr int kMeterLogicalCols = 256;
-// Azimuth tessellation (higher = smoother ring).
-constexpr int kMeterColsGeom = 512;
-// Latitude strips per channel band (higher = smoother meridians).
-constexpr int kLatSub = 4;
+// Square UV/plane: N×N quads, N divisible by kLatitudeBands (16). Each quad maps to a 1/N×1/N cell (matches square 4K maps).
+// 1024 ≈ 4.2M verts; 2048 ≈ 16.8M (heavy); 4096 likely OOM — raise only if you have RAM/VRAM.
+constexpr int kUvGridRes = 1024;
 constexpr int kLatitudeBands = kNumInputChannels;
+static_assert(kUvGridRes > 0 && kUvGridRes % kLatitudeBands == 0, "kUvGridRes must be a positive multiple of 16");
+constexpr int kMeterColsGeom = kUvGridRes;
+constexpr int kLatSub = kUvGridRes / kLatitudeBands;
 
 // Max radial push along vertex normal; ~4–5% of radius keeps motion visible without puffing the loaf.
 constexpr float kDispAmp = kSphereRadius * 0.045f;
@@ -187,7 +189,6 @@ void buildSphereMesh(){
 			const float t1 = glm::mix(bandT0, bandT1, st1);
 
 			const int stripIndex = band * kLatSub + sub;
-			const float vc = (static_cast<float>(stripIndex) + 0.5f) / static_cast<float>(totalLatStrips);
 
 			for(int j = 0; j < kMeterColsGeom; ++j){
 				const float phi0 = twoPi * (static_cast<float>(j) * invGeom) + phiTwist;
@@ -203,23 +204,25 @@ void buildSphereMesh(){
 				const glm::vec3 n11 = glm::normalize(v11);
 				const glm::vec3 n01 = glm::normalize(v01);
 
-				const float u0 = std::fmod(phi0, twoPi) / twoPi;
-				const float u1 = std::fmod(phi1, twoPi) / twoPi;
+				const float ub = static_cast<float>(j) * invGeom;
+				const float ut = static_cast<float>(j + 1) * invGeom;
+				const float vb = static_cast<float>(stripIndex) / static_cast<float>(totalLatStrips);
+				const float vt = static_cast<float>(stripIndex + 1) / static_cast<float>(totalLatStrips);
 
 				const float colNorm = (static_cast<float>(j) + 0.5f) * invGeom;
 
-				auto pushV = [&](const glm::vec3 & p, const glm::vec3 & n, float u){
+				auto pushV = [&](const glm::vec3 & p, const glm::vec3 & n, float u, float v){
 					gMesh.addVertex(p);
 					gMesh.addNormal(n);
-					gMesh.addTexCoord(glm::vec2(u, vc));
+					gMesh.addTexCoord(glm::vec2(u, v));
 					gMesh.addColor(ofFloatColor(static_cast<float>(channel), colNorm, 0.f, 1.f));
 				};
 
 				const int base = static_cast<int>(gMesh.getNumVertices());
-				pushV(v00, n00, u0);
-				pushV(v10, n10, u1);
-				pushV(v11, n11, u1);
-				pushV(v01, n01, u0);
+				pushV(v00, n00, ub, vb);
+				pushV(v10, n10, ut, vb);
+				pushV(v11, n11, ut, vt);
+				pushV(v01, n01, ub, vt);
 
 				gMesh.addIndex(base + 0);
 				gMesh.addIndex(base + 1);
@@ -333,7 +336,9 @@ void setupSphereMeterView(){
 	tryLoadHdri();
 	buildSphereMesh();
 
-	ofLogNotice("SphereMeterView") << "PBR: " << (gLoggedBreadFallback ? "partial fallbacks" : "bread/*.png OK") << " | IBL env=" << gEnvOk;
+	const size_t nVerts = gMesh.getNumVertices();
+	ofLogNotice("SphereMeterView") << "Sphere mesh: square UV " << kUvGridRes << "×" << kUvGridRes << " quads  verts=" << nVerts
+									 << " | PBR: " << (gLoggedBreadFallback ? "partial fallbacks" : "bread/*.png OK") << " | IBL env=" << gEnvOk;
 }
 
 void drawSphereMeterPBR(const ofCamera & cam, const std::array<float, kNumInputChannels> & meterDisplay, int numInputChannels){
