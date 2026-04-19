@@ -1,7 +1,7 @@
 #include "ofApp.h"
 #include "MeterBlocks.h"
 #include "SoundDevicePickers.h"
-#include "SphereMeterView.h"
+#include "WallGridMeterView.h"
 #include "StereoMonitor.h"
 #include <algorithm>
 
@@ -13,8 +13,8 @@ void ofApp::setup(){
 	ofEnableAlphaBlending();
 	ofBackground(54, 54, 54);
 
-	orbitCam_.setup(-4000.f, 4000.f);
-	lqcaa::setupSphereMeterView();
+	orbitCam_.setup(15.f, 25000.f);
+	lqcaa::setupWallGridMeterView();
 
 	soundStream.printDeviceList();
 
@@ -110,21 +110,12 @@ void ofApp::draw(){
 	const ofRectangle vp(0, 0, ofGetWidth(), ofGetHeight());
 	orbitCam_.begin(vp);
 	glClear(GL_DEPTH_BUFFER_BIT);
-	lqcaa::drawSphereMeterSky();
-	lqcaa::drawSphereMeterPBR(orbitCam_.getCamera(), meterDisplay, actualInputChannels_);
+	lqcaa::drawWallGridMeter(orbitCam_.getCamera(), meterDisplay, actualInputChannels_);
 	orbitCam_.end();
 	ofDisableDepthTest();
 
 	ofSetColor(200);
-	ofDrawBitmapString("Drag sphere view: left mouse orbit (ortho, +Y up).  [u] UV unwrap vs sphere grid.", 12, 74);
-
-	if(showUvUnfold_){
-		const float pad = 12.f;
-		const float panelW = std::min(920.f, static_cast<float>(ofGetWidth()) - 2.f * pad);
-		const float panelH = std::min(480.f, static_cast<float>(ofGetHeight()) * 0.45f);
-		const ofRectangle unfold(pad, 84.f, panelW, panelH);
-		lqcaa::drawSphereMeterUnfold(unfold, meterDisplay, actualInputChannels_);
-	}
+	ofDrawBitmapString("Drag: orbit (perspective, +Y up).  [1] spatial row|cell  [2] encoding linear|dB", 12, 74);
 
 	ofSetColor(180);
 	ofDrawBitmapString("Route Ableton → BlackHole 16ch; manual QA: verify each ch + headphone monitor.", 12, static_cast<float>(ofGetHeight()) - 10.f);
@@ -168,9 +159,7 @@ void ofApp::audioOut(ofSoundBuffer & output){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	if(key == 'u' || key == 'U'){
-		showUvUnfold_ = !showUvUnfold_;
-	}
+	lqcaa::handleWallGridMeterKey(key);
 }
 
 //--------------------------------------------------------------

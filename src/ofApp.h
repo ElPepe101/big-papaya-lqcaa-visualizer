@@ -46,5 +46,4 @@ class ofApp : public ofBaseApp{
 	OrbitOrthoCamera orbitCam_;
 	glm::ivec2 dragLast_{0, 0};
 	bool orbDragging_ = false;
-	bool showUvUnfold_ = false;
 };

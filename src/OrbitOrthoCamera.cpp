@@ -6,8 +6,9 @@ void OrbitOrthoCamera::setup(float nearClip, float farClip){
 	farClip_ = farClip;
 	cam_.setNearClip(nearClip);
 	cam_.setFarClip(farClip);
-	cam_.setupPerspective(false, 60.f, nearClip, farClip);
-	cam_.enableOrtho();
+	// Perspective orbit for plane meter (infinite-plane-meter-perspective-pbr).
+	cam_.setupPerspective(false, 55.f, nearClip, farClip);
+	cam_.disableOrtho();
 	cam_.setVFlip(false);
 }
 
@@ -27,7 +28,8 @@ void OrbitOrthoCamera::applyEye(){
 	const float sp = std::sin(elevation_);
 	const float sa = std::sin(azimuth_);
 	const float ca = std::cos(azimuth_);
-	const float distance = 800.f;
+	// Wall meter (~520×400): closer eye reads grid + noise; world-wall-noise-grid-meter.
+	const float distance = 720.f;
 	const glm::vec3 pos(distance * cp * sa, distance * sp, distance * cp * ca);
 	cam_.setPosition(pos);
 	cam_.lookAt(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
